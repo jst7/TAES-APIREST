@@ -1,0 +1,24 @@
+{
+  "name": "runningTaes",
+  "version": "1.0.0",
+  "description": "runningTaes",
+  "main": "app.js",
+  "dependencies": {
+    "body-parser": "^1.14.1",
+    "express": "^4.13.3",
+    "express-generator": "^4.13.1",
+    "mime": "^1.3.4",
+    "multer": "^1.1.0",
+    "mysql": "^2.10.2",
+    "sequelize": "^3.11.0"
+  },
+  "devDependencies": {
+    "supertest": "^1.1.0"
+  },
+  "scripts": {
+    "start": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

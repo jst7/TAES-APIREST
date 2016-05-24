@@ -1,0 +1,657 @@
+-- -----------------------------------------------------
+-- Para Regenerar las tablas desde el principio
+-- -----------------------------------------------------
+
+DROP PROCEDURE IF EXISTS drop_all_tables;
+
+DELIMITER $$
+CREATE PROCEDURE drop_all_tables()
+BEGIN
+    DECLARE _done INT DEFAULT FALSE;
+    DECLARE _tableName VARCHAR(255);
+    DECLARE _cursor CURSOR FOR
+        SELECT table_name 
+        FROM information_schema.TABLES
+        WHERE table_schema = SCHEMA();
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET _done = TRUE;
+
+    SET FOREIGN_KEY_CHECKS = 0;
+
+    OPEN _cursor;
+
+    REPEAT FETCH _cursor INTO _tableName;
+
+    IF NOT _done THEN
+        SET @stmt_sql = CONCAT('DROP TABLE ', _tableName);
+        PREPARE stmt1 FROM @stmt_sql;
+        EXECUTE stmt1;
+        DEALLOCATE PREPARE stmt1;
+    END IF;
+
+    UNTIL _done END REPEAT;
+
+    CLOSE _cursor;
+    SET FOREIGN_KEY_CHECKS = 1;
+END $$
+
+DELIMITER ;
+
+call drop_all_tables();
+
+DROP PROCEDURE IF EXISTS drop_all_tables;
+-- -----------------------------------------------------
+-- Tabla foto
+Create Table Foto (
+Url varchar(100),
+Primary Key (Url)
+);
+
+-- Tabla Usuario
+-- En género 0 será mujer y 1 será hombre
+create Table Usuario (
+ Nombre varchar(20),
+ Usuario varchar(20),
+ Pass varchar(20) Not NULL,
+ Correo varchar(50) NOT NULL,
+ Ciudad varchar(20),
+ Pais varchar(20),
+ Edad numeric(3,0),
+ Altura numeric(3,0),
+ Peso numeric(4,1),
+ Genero tinyint,
+ Unique(Correo),
+ Imagen varchar(100),
+ Primary Key (Usuario),
+ Foreign Key (Imagen) References Foto(Url) on update cascade on delete cascade);
+
+-- Crear Red social
+#Create Table Red_Social (Nombre varchar(20),Primary Key (Nombre));
+
+-- Crear relacion muchos a muchos red social, usuario
+#Create Table Usuario_Red_Social (RedSocial varchar(20),Usuario varchar(20),EmailAccesoRed varchar(20),Primary Key (RedSocial,Usuario),Foreign Key (RedSocial) References Red_Social(Nombre) ON UPDATE CASCADE On delete cascade,Foreign Key (Usuario) References Usuario(Usuario) ON UPDATE CASCADE On delete cascade);
+
+-- Crear Ruta
+
+-- Crear PuntosGPS
+-- Por peticion de interfaz se ha añadido como columna
+-- A la tabla Ruta el fichero donde esten todos los puntos
+-- En lugar de guardar cada punto y las veces k se descarga 
+-- ese fichero
+
+Create Table Ruta(
+Nombre varchar(50) primary key ,
+Ciudad varchar(30),
+Distancia numeric(6,0),
+TiempoEst numeric(5,0),
+Usuario varchar(20),
+FicheroPuntosURL varchar(100),
+VecesDescargadas numeric (6,0),
+Foreign Key (Usuario) References Usuario(Usuario) ON UPDATE CASCADE ON DELETE SET NULL
+);
+
+-- Crear Fotos_Ruta
+Create Table Fotos_Ruta(
+Foto varchar(100),
+Ruta varchar(50),
+Primary key (Foto,Ruta),
+Foreign Key (Foto) References Foto(Url) ON UPDATE CASCADE ON DELETE CASCADE,
+Foreign Key (Ruta) References Ruta(Nombre) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+-- Crear Recorrer
+Create Table Recorrer(
+Usuario varchar(20),
+Ruta varchar(50),
+Tiempo numeric(5,0),
+Primary Key (Usuario,Ruta),
+Foreign Key (Usuario) References Usuario(Usuario) ON UPDATE CASCADE ON DELETE CASCADE,
+Foreign Key (Ruta) References Ruta(Nombre) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+-- Crear Valoracion
+Create Table Valoracion(
+Usuario varchar(20),
+Ruta varchar(50),
+Comentario varchar(300),
+Valoracion numeric(1),
+Primary Key (Usuario,Ruta),
+Foreign Key (Usuario) References Usuario(Usuario) ON UPDATE CASCADE ON DELETE CASCADE,
+Foreign Key (Ruta) References Ruta(Nombre) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+
+-- Crear Salida
+#Create table Salida (idSalida int AUTO_INCREMENT,Descripcion varchar(300),Hora Date,Publica Tinyint,idRuta varchar(50) NOT NULL, primary key (idSalida),Foreign Key (idRuta) References Ruta(Nombre) ON UPDATE CASCADE On delete cascade);
+
+-- Tabla Usuario_Salida
+#Create table Usuario_Salida (Usuario varchar(20),Salida int,Primary Key (Usuario, Salida), Foreign Key (Usuario) References Usuario(Usuario) ON UPDATE no action On delete no action,Foreign Key (Salida) References Salida(idSalida) ON UPDATE no action On delete no action);
+
+-- Tabla Amigo
+create table Amigo(Usuario varchar(20), Amigo varchar(20),
+primary key(Usuario,Amigo),
+foreign key(Usuario) references Usuario(Usuario) ON UPDATE CASCADE On delete cascade,
+foreign key(Amigo) references Usuario(Usuario)ON UPDATE CASCADE On delete cascade
+);
+
+-- Tablas Usuario Publico y Privado (T,D)
+
+create table UsuarioPublico(Usuario varchar(20) primary key,
+foreign key (Usuario) references Usuario(Usuario));
+
+create table UsuarioPrivado(Usuario varchar(20) primary key,
+foreign key (Usuario) references Usuario(Usuario));
+
+-- Tabla Privacidad (Atributo multivaluado 0...N en la tabla UsuarioPrivado)
+
+create table Privacidad(Usuario varchar(20), CamposPrivados varchar(20), 
+primary key(Usuario,CamposPrivados),
+foreign key (Usuario) references UsuarioPrivado(Usuario)
+);
+
+-- Tabla Ranking
+create table Ranking(Usuario varchar(20) primary key, Posicion numeric(6,0), Puntuacion numeric(6,0),foreign key (Usuario) references Usuario(Usuario));
+
+
+
+-- --------------------------------------------------------
+-- PROCEDURES
+-- --------------------------------------------------------
+
+-- Procedure registrarse
+DROP procedure IF EXISTS Registrarse;# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+
+DELIMITER $$
+CREATE PROCEDURE Registrarse (usuario varchar(20), correo varchar(50), pass varchar(20))
+BEGIN
+INSERT IGNORE INTO Usuario(Usuario, Correo, Pass)
+VALUES (usuario, correo, pass);
+END$$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+
+DELIMITER ;
+
+-- Método para comprobar que el correo es correcto
+DROP procedure IF EXISTS `comprobarCorreo`;
+
+DELIMITER $$
+
+CREATE PROCEDURE comprobarCorreo (in correo varchar(50) , out correcto tinyint(1))
+BEGIN
+SELECT correo  REGEXP '^[A-Z]+[A-Z0-9]+@[A-Z0-9]+\.[A-Z]{2,6}$' into correcto;
+END$$
+
+DELIMITER ;
+
+
+-- Llamada procedure registro
+call Registrarse('sergi', 'a@gmail.com', 'asdfg');
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+-- Procedure logearse
+drop procedure if exists Loguearse;
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter $$
+create procedure Loguearse (usu varchar(50),passw varchar(20))
+begin
+select count(*) login from Usuario where Usuario.Usuario = usu and Usuario.Pass=passw;
+end$$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+delimiter ;
+
+-- Editar Perfil
+drop procedure if exists Perfil;
+
+delimiter $$
+create procedure Perfil(Nombre varchar(20), Usuario varchar(20),Pass varchar(20),Correo varchar(50),Ciudad varchar(20),Pais varchar(20),Edad numeric(3,0),Altura numeric(3,0),Peso numeric(4,1), url varchar(100), Genero tinyint)
+begin
+if url <> null or url<> '' then
+	insert into Foto values (url);
+update Usuario
+set
+Usuario.Nombre=Nombre,
+Usuario.Pass=Pass,
+Usuario.Correo=Correo,
+Usuario.Ciudad=Ciudad,
+Usuario.Pais=Pais,
+Usuario.Edad=Edad,
+Usuario.Altura=Altura,
+Usuario.Peso=Peso,
+Usuario.Imagen=url,
+Usuario.Genero=Genero
+where Usuario.Usuario=Usuario;
+else
+update Usuario
+set
+Usuario.Nombre=Nombre,
+Usuario.Pass=Pass,
+Usuario.Correo=Correo,
+Usuario.Ciudad=Ciudad,
+Usuario.Pais=Pais,
+Usuario.Edad=Edad,
+Usuario.Altura=Altura,
+Usuario.Peso=Peso,
+Usuario.Genero=Genero
+where Usuario.Usuario=Usuario;
+
+end if;
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+-- Procedure que cambia todo menos la pass y el correo
+drop procedure if exists PerfilSinPassCorreo;
+delimiter $$
+create procedure PerfilSinPassCorreo(Nombre varchar(20), Usuario varchar(20),Ciudad varchar(20),Pais varchar(20),Edad numeric(3,0),Altura numeric(3,0),Peso numeric(4,1), url varchar(100), Genero tinyint)
+begin
+if url <> null or url<> '' then
+  insert into Foto values (url);
+  update Usuario
+  set
+  Usuario.Nombre=Nombre,
+  Usuario.Ciudad=Ciudad,
+  Usuario.Pais=Pais,
+  Usuario.Edad=Edad,
+  Usuario.Altura=Altura,
+  Usuario.Peso=Peso,
+  Usuario.Imagen=url,
+  Usuario.Genero=Genero
+  where Usuario.Usuario=Usuario;
+else
+  update Usuario
+  set
+  Usuario.Nombre=Nombre,
+  Usuario.Ciudad=Ciudad,
+  Usuario.Pais=Pais,
+  Usuario.Edad=Edad,
+  Usuario.Altura=Altura,
+  Usuario.Peso=Peso,
+  Usuario.Genero=Genero
+  where Usuario.Usuario=Usuario;
+
+end if;
+
+end $$
+delimiter ;
+
+-- InsertarRuta
+drop procedure if exists InsertarRuta;
+
+delimiter $$
+create procedure InsertarRuta(Nombre varchar(50),
+Ciudad varchar(30),Distancia numeric(6,0),TiempoEst numeric(5,0),Usuario varchar(20),url varchar(100))
+begin
+insert into Ruta values
+(Nombre,Ciudad,Distancia,TiempoEst,Usuario,url,0);
+
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+-- BorrarRuta
+drop procedure if exists BorrarRuta;
+
+delimiter $$
+create procedure BorrarRuta(Nombre varchar(50))
+begin
+delete from Ruta where Ruta.Nombre=Nombre;
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+-- ActualizaRuta
+-- Una ruta no puede cambiar el usuario que la ha creado
+drop procedure if exists ActualizaRuta;
+
+delimiter $$
+create procedure ActualizaRuta(Nombre varchar(50),
+Ciudad varchar(30),Distancia numeric(6,0),TiempoEst numeric(5,0),Usuario varchar(20),url varchar(100),VecesDescargadas numeric(6,0))
+begin
+update Ruta
+set
+Ruta.Ciudad=Ciudad,
+Ruta.Distancia=Distancia,
+Ruta.TiempoEst=TiempoEst,
+Ruta.FicheroPuntosURL=url,
+Ruta.VecesDescargadas=VecesDescargadas
+where Ruta.Nombre=Nombre;
+
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+-- Rutas
+-- Devuelve todas las rutas creadas junto con su informacion
+drop procedure if exists Rutas;
+
+delimiter $$
+create procedure Rutas()
+begin
+select * from Ruta;
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+-- RutasID
+-- Devuelve todas las rutas creadas junto con su informacion
+drop procedure if exists RutasID;
+
+delimiter $$
+create procedure RutasID(Nombre varchar(50))
+begin
+select * from Ruta where Ruta.Nombre=Nombre;
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+-- Descargar
+-- Devuelve la URL de una ruta y aumenta en 1 su valor VecesDescargadas
+
+drop procedure if exists Descargar;
+
+delimiter $$
+create procedure Descargar(Nombre varchar(50))
+begin
+
+select FicheroPuntosURL from Ruta where Ruta.Nombre=Nombre;
+
+update Ruta
+set
+Ruta.VecesDescargadas= Ruta.VecesDescargadas+1
+where Ruta.Nombre=Nombre;
+
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+
+-- Crear RankingGlobal
+
+drop procedure if exists RankingGlobal;
+
+delimiter  $$
+
+create procedure RankingGlobal()
+begin
+select * from Ranking order by Posicion limit 100;
+end $$
+
+delimiter ;
+
+-- Crear RankingAmigos
+
+drop procedure if exists RankingAmigos;
+
+delimiter  $$
+
+create procedure RankingAmigos(Usuario varchar(20))
+begin
+
+select * from Ranking where Ranking.Usuario in (select Amigo from Amigo where Amigo.Usuario=Usuario) or Ranking.Usuario=Usuario
+order by Posicion asc;
+
+end $$
+
+delimiter ;
+
+-- Crear RankingPersonal
+
+drop procedure if exists RankingPersonal;
+
+delimiter  $$
+
+create procedure RankingPersonal(Usuario varchar(20))
+begin
+
+SET @r=0;
+select Posicion into @r from Ranking where Ranking.Usuario=Usuario;
+
+if (@r<10) then
+	select * from Ranking where Ranking.Posicion between 0 and (@r+10) order by Posicion asc;
+
+else
+	select * from Ranking where Ranking.Posicion between (@r-10) and (@r+10) order by Posicion asc;
+end if;
+
+end $$
+
+delimiter ;
+
+-- NuevoRanker
+-- Inserta una nueva persona en el ranking
+drop procedure if exists NuevoRanker;
+
+delimiter $$
+
+create procedure NuevoRanker(Usuario varchar(20), Puntuacion numeric(6,0))
+begin
+insert into Ranking values(Usuario, 0,Puntuacion);
+SET @r=0;
+UPDATE Ranking SET Ranking.Posicion= @r:= (@r+1) ORDER BY Ranking.Puntuacion DESC;
+end $$
+
+delimiter ;
+
+-- Actualizar Ranking 
+-- Actualiza el ranking del usuario y su posicion
+drop procedure if exists ActualizaRanker;
+
+delimiter $$
+
+create procedure ActualizaRanker(Usuario varchar(20), Puntuacion numeric(6,0))
+begin
+
+update Ranking set
+Ranking.Puntuacion=Puntuacion
+where Ranking.Usuario=Usuario;
+
+SET @r=0;
+UPDATE Ranking SET Ranking.Posicion= @r:= (@r+1) ORDER BY Ranking.Puntuacion DESC;
+
+end $$
+
+delimiter ;
+
+
+-- Obtener posicion Ranking 
+drop procedure if exists PosicionRanker;
+
+delimiter $$
+
+create procedure PosicionRanker(Usuario varchar(20))
+begin
+select Posicion from Ranking where Ranking.Usuario=Usuario;
+end $$
+
+delimiter ;
+
+
+-- Obtener Valoracion Ruta
+drop procedure if exists getValoracion;
+
+delimiter $$
+
+create procedure getValoracion(Usuario varchar(20),Ruta varchar(50))
+begin
+select * from Valoracion where Valoracion.Usuario=Usuario and Valoracion.Ruta=Ruta;
+end $$
+
+delimiter ;
+
+-- Crear Valoracion Ruta
+drop procedure if exists crearValoracion;
+
+delimiter $$
+
+create procedure crearValoracion(Usuario varchar(20),Ruta varchar(50),Comentario varchar(300), Valoracion numeric(1))
+begin
+insert into Valoracion values (Usuario, Ruta, Comentario, Valoracion);
+end $$
+
+delimiter ;
+
+-- Modificar Valoracion Ruta
+drop procedure if exists modificarValoracion;
+
+delimiter $$
+
+create procedure modificarValoracion(Usuario varchar(20),Ruta varchar(50),Comentario varchar(300), Valoracion numeric(1))
+begin
+update Valoracion set
+Valoracion.Comentario=Comentario,
+Valoracion.Valoracion=Valoracion
+where Valoracion.Usuario=Usuario and Valoracion.Ruta=Ruta;
+end $$
+
+delimiter ;
+
+-- Nuevo Amigo
+drop procedure if exists nuevoAmigo;
+delimiter $$
+
+create procedure nuevoAmigo(Usuario varchar(20), Amigo varchar(20))
+begin
+insert into Amigo values(Usuario, Amigo);
+end $$
+
+delimiter ;
+
+-- Borrar Amigo
+drop procedure if exists borrarAmigo;
+
+delimiter $$
+
+create procedure borrarAmigo(Usuario varchar(20), Amigo varchar(20))
+begin
+delete from Amigo where Amigo.Usuario=Usuario and Amigo.Amigo=Amigo;
+end $$
+
+
+delimiter ;
+
+-- Leer Amigos
+drop procedure if exists getAmigos;
+
+delimiter $$
+
+create procedure getAmigos(Usuario varchar(20))
+begin
+select * from Amigo where Amigo.Usuario=Usuario;
+end $$
+
+delimiter ;
+
+
+-- Devolver todos los datos de un usuario(pasandole el usuario)
+drop procedure if exists PerfilUsuario;
+DELIMITER $$
+CREATE PROCEDURE PerfilUsuario (usuario varchar(20))
+BEGIN
+SELECT *
+FROM usuario u WHERE u.Usuario = usuario; 
+END$$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+DELIMITER ;
+
+-- Añadir Foto de Ruta
+drop procedure if exists nuevaFotoRuta;
+
+delimiter $$
+
+create procedure nuevaFotoRuta(Ruta varchar(50),Foto varchar(100))
+begin
+insert into Foto values(Foto);
+insert into Fotos_Ruta values (Foto,Ruta);
+end $$
+
+delimiter ;
+
+
+-- Eliminar Foto de Ruta
+drop procedure if exists borrarFotoRuta;
+delimiter $$
+create procedure borrarFotoRuta(Foto varchar(100),Ruta varchar(50))
+begin
+delete from Fotos_Ruta where Fotos_Ruta.Ruta=Ruta and Fotos_Ruta.Foto=Foto;
+delete from Foto where Foto.Url=Foto;
+end $$
+delimiter ;
+
+
+-- Obtener Fotos de Ruta
+drop procedure if exists getFotosRuta;
+
+delimiter $$
+
+create procedure getFotosRuta(Ruta varchar(50))
+begin
+select Foto from Fotos_Ruta where Fotos_Ruta.Ruta=Ruta;
+end $$
+
+delimiter ;
+
+-- Procedure para recorrer una ruta
+drop procedure if exists RecorrerRuta;
+delimiter $$
+
+create procedure RecorrerRuta(usuario VARCHAR(20), ruta VARCHAR(50), tiempo numeric(5,0))
+BEGIN
+INSERT INTO Recorrer(Usuario, Ruta, Tiempo)
+VALUES (usuario, ruta, tiempo);
+END $$
+
+delimiter ;
+
+-- Procedure para devolver las rutas de mayor a menor
+drop procedure if exists RutasMayorMenor;
+delimiter $$
+create procedure RutasMayorMenor()
+begin
+select * from Ruta order by Distancia desc;
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+-- Procedure para devolver las rutas de menor a mayor
+drop procedure if exists RutasMenorMayor;
+delimiter $$
+create procedure RutasMenorMayor()
+begin
+select * from Ruta order by Distancia asc;
+end $$
+# MySQL ha devuelto un conjunto de valores vacío (es decir: cero columnas).
+
+delimiter ;
+
+-- procedure para borrar usuario
+drop procedure if exists borraUsuario;
+
+delimiter $$
+
+create procedure borraUsuario(Usuario varchar(20))
+begin
+delete from Ranking where Ranking.Usuario=Usuario;
+delete from Amigo where Amigo.Usuario=Usuario or Amigo.Amigo=Usuario;
+delete from Usuario where Usuario.Usuario=Usuario;
+SET @r=0;
+UPDATE Ranking SET Ranking.Posicion= @r:= (@r+1) ORDER BY Ranking.Puntuacion DESC;
+
+end $$
+
+delimiter ;
+
+-- -----------------------------------------------------------
+-- FUNCIONA HASTA AQUI
+-- -----------------------------------------------------------
+
+
